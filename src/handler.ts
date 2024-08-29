@@ -30,6 +30,8 @@ export async function handleRequest(
   event: APIGatewayRequestAuthorizerEvent,
   config: Configuration
 ): Promise<AuthResponse> {
+  // CHANGE: handle different naming
+  // event.methodArn = event.routeArn
 
   const singleValueHeaders = event.headers || {}
   const originFromHeader = singleValueHeaders['origin'] || singleValueHeaders['Origin'] || ''
@@ -122,12 +124,12 @@ export async function handleRequest(
     return generateDenyIAMPolicy('anonymous', event.methodArn)
   }
 
-  const iamPolicy = generateIAMPolicy(accessToken, event.methodArn)
+  const iamPolicy = generateIAMPolicy('user', event.methodArn);  // CHANGE: change to user
   let policyContext = {} as any;
 
   if (config.phantomToken) {
     try {
-      accessToken = await exchangePhantomToken(accessToken, config)
+      var unusedUserInfoData = await exchangePhantomToken(accessToken, config);  // CHANGE: replace variable name
     } catch (error: any) {
       if (error instanceof TokenExpired) {
         // Promise has to be rejected with the string "Unauthorized". This way the lambda authorizer returns a 401 to the client.
@@ -141,9 +143,9 @@ export async function handleRequest(
   }
 
     // Add the access token to context making it available to API GW to add to upstream Authorization header
-    iamPolicy.context = {
-      "token": 'Bearer ' + accessToken
-    };
+    // iamPolicy.context = {
+    //     "token": 'Bearer ' + accessToken
+    // };  CHANGE: commented out as it is not necessary
 
   return iamPolicy
 }
@@ -238,13 +240,8 @@ function introspect(options: RequestOptions, data: string): Promise<string> {
 }
 
 async function exchangePhantomToken(accessToken: string, configuration: Configuration): Promise<string> {
-
+  // CHANGE: integrate with Azure AD userinfo endpoint
   const data = new URLSearchParams();
-  data.append('token', accessToken);
-
-  //Base64 encode client_id and client_secret to authenticate Introspection endpoint
-  const introspectCredentials = Buffer.from(configuration.clientID + ":" + configuration.clientSecret, 'utf-8').toString('base64');
-
   const introspectionUrl = new URL(configuration.introspectionURL)
 
   const options = {
@@ -253,7 +250,7 @@ async function exchangePhantomToken(accessToken: string, configuration: Configur
     port: introspectionUrl.port,
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + introspectCredentials,
+      'Authorization': 'Bearer ' + accessToken,
       'Accept': 'application/jwt',
       'Content-Type': 'application/x-www-form-urlencoded',
       'Content-Length': data.toString().length
