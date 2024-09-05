@@ -32,6 +32,8 @@ export async function handleRequest(
 ): Promise<AuthResponse> {
   // CHANGE: handle different naming
   // event.methodArn = event.routeArn
+  // event.httpMethod = event.requestContext.http.method
+  // event.path = event.rawPath
 
   const singleValueHeaders = event.headers || {}
   const originFromHeader = singleValueHeaders['origin'] || singleValueHeaders['Origin'] || ''
